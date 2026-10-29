@@ -81,6 +81,8 @@ _KNOWN_USER_KEYS = {
     "proactive_wait_seconds",
     "speech_speed",
     "repeat_speed",
+    "remote_base_url",   # <-- otherwise config prints "unknown key ignored"
+    "remote_model",
 }
 for _key in _USER:
     if not _key.startswith("_") and _key not in _KNOWN_USER_KEYS:
@@ -250,9 +252,9 @@ else:
 # Lesson
 # =====================================================================
 # The language of corrections and of the summary. Fixed, with no settings key:
-# the NOTE example in the prompt is written in Russian, and a prompt that asks
-# for another language with a Russian example gives mixed corrections.
-EXPLANATION_LANGUAGE = "Russian"
+# the NOTE example in the prompt is written in italian, and a prompt that asks
+# for another language with an italian example gives mixed corrections.
+EXPLANATION_LANGUAGE = "Italian"
 
 # First topic of the lesson, read from settings.json ("first_topic"). Empty
 # means the default the prompt itself names in its SETTINGS line.
@@ -418,9 +420,10 @@ TTS_DEVICE = _model_device("TTS_DEVICE", DEVICE)
 #   "llama-server" - the official llama.cpp binary started automatically as a
 #                    subprocess (llm_server_ctl.find_llama_server finds it)
 #   "lm-studio"    - external LM Studio app (must be running separately)
+# i'm trying to add the possibility to add another way, remote models! 
 # There is no "no model" choice: a dialogue lesson cannot run without one.
-LLM_BACKEND_CHOICES = ("llama-server", "lm-studio")
-LLM_BACKEND = _USER.get("llm_backend", "llama-server")
+LLM_BACKEND_CHOICES = ("llama-server", "lm-studio", "remote")
+LLM_BACKEND = _USER.get("llm_backend", "llama-server")     ##tocheck
 if LLM_BACKEND not in LLM_BACKEND_CHOICES:
     print(f"[config] settings.json: unknown llm_backend {LLM_BACKEND!r} "
           f"(expected one of {', '.join(LLM_BACKEND_CHOICES)}); "
@@ -451,6 +454,36 @@ LM_STUDIO_API_KEY = "lm-studio"
 # The model name is not here: LM Studio serves whatever is loaded and ignores
 # the field, so it configures nothing - see llm.PLACEHOLDER_MODEL.
 
+
+# =====================================================================
+# Remote backend (any online service with an OpenAI-compatible API)
+# =====================================================================
+REMOTE_BASE_URL = _USER.get("remote_base_url", "")        # <-- the provider's address, from settings.json
+REMOTE_MODEL = _USER.get("remote_model", "")              # <-- the model name, from settings.json
+REMOTE_API_KEY = os.environ.get("SPEAKLOOP_LLM_API_KEY", "")  # <-- the key comes from the environment, never a file
+
+if not isinstance(REMOTE_BASE_URL, str):                  # <-- guard against a wrong type typed by hand
+    REMOTE_BASE_URL = ""
+if not isinstance(REMOTE_MODEL, str):
+    REMOTE_MODEL = ""
+REMOTE_BASE_URL = REMOTE_BASE_URL.strip()                 # <-- remove stray spaces
+REMOTE_MODEL = REMOTE_MODEL.strip()
+
+# What is missing for the "remote" backend. Not a fallback to another backend:
+# a lesson that silently runs on the local model instead of the chosen service
+# would be worse than none. app.py stops the start when this list is not empty.
+REMOTE_PROBLEMS = []                                      # <-- stays empty for every other backend
+if LLM_BACKEND == "remote":
+    if not REMOTE_BASE_URL:
+        REMOTE_PROBLEMS.append("remote_base_url is missing in settings.json")
+    if not REMOTE_MODEL:
+        REMOTE_PROBLEMS.append("remote_model is missing in settings.json")
+    if not REMOTE_API_KEY:
+        REMOTE_PROBLEMS.append(
+            "the SPEAKLOOP_LLM_API_KEY environment variable is not set")
+    for _problem in REMOTE_PROBLEMS:                      # <-- also print to the console, like other config warnings
+        print(f"[config] llm_backend is 'remote': {_problem}", file=sys.stderr)
+
 # =====================================================================
 # Local LLM Server (the "llama-server" backend)
 # =====================================================================
@@ -470,13 +503,28 @@ LLM_SERVER_API_KEY = "local"
 def _client_address(backend: str) -> tuple:
     """URL and key of the chat server of *backend*."""
     if backend == "llama-server":
-        return LLM_SERVER_URL, LLM_SERVER_API_KEY
-    return LM_STUDIO_URL, LM_STUDIO_API_KEY
-
+        return LLM_SERVER_URL, LLM_SERVER_API_KEY         # <-- unchanged
+    if backend == "remote":
+        # The "or" values only keep the client constructible when a setting is
+        # missing; app.py stops the start before any request (REMOTE_PROBLEMS).
+        return REMOTE_BASE_URL or LM_STUDIO_URL, REMOTE_API_KEY or "not-set"
+    return LM_STUDIO_URL, LM_STUDIO_API_KEY               # <-- unchanged (LM Studio)
 
 # The address and the key the chat client uses: app.py points LLMManager at
 # them once, for either backend.
 LLM_URL, LLM_API_KEY = _client_address(LLM_BACKEND)
+
+
+# The model name sent with every request. Only the remote service needs a real
+# one; None keeps the placeholder the two local backends ignore.
+LLM_MODEL = REMOTE_MODEL if LLM_BACKEND == "remote" else None   # <-- None = old behavior
+
+
+# Extra HTTP headers for the chat client, or None. Only the Anthropic API needs
+# one: its model list refuses a request without the API version.
+LLM_EXTRA_HEADERS = ({"anthropic-version": "2023-06-01"}
+                     if LLM_BACKEND == "remote" and "anthropic.com" in REMOTE_BASE_URL
+                     else None)
 
 # How long (seconds) to wait for the server to become ready after launching.
 # The measured load of the 7 GB Gemma file was 16 s with the file in the OS
@@ -592,7 +640,7 @@ LLM_MAX_TOKENS = 512
 WHISPER_MODEL = models_info.WHISPER.repo_id
 WHISPER_BEAM_SIZE = 1         # Greedy decoding: the fastest
 WHISPER_NO_SPEECH_THRESHOLD = 0.45
-WHISPER_CPU_THREADS = 4       # CPU inference threads (tune to available core count)
+WHISPER_CPU_THREADS = 12       # CPU inference threads (tune to available core count)
 
 # Context conditioning instruction guiding Whisper's spelling logic
 WHISPER_INITIAL_PROMPT = (

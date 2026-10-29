@@ -10,7 +10,7 @@ only while the start of the conversation stays the same.
 
 The prompt has four places to fill in. Three are the SETTINGS lines, filled
 here. The fourth is the NOTE example in OUTPUT, which is written in the
-explanation language. The explanation language is fixed to Russian in this
+explanation language. The explanation language is fixed to Italian in this
 version (config.EXPLANATION_LANGUAGE), so the example stays as the file has it.
 
 No config import: the caller passes the values, so the tests need neither

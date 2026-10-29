@@ -718,7 +718,7 @@ class TutorView:
         self.root.bind("<KeyPress-r>", self._on_repeat_key)
         self.root.bind("<KeyPress-R>", self._on_repeat_key)
         if self._settings.proactive:
-            # The English P only (the owner's decision): in a Russian layout
+            # The English P only (the owner's decision): in a Russian layout    # boh non ho capito
             # the key gives Cyrillic_ze and does nothing; the button and the
             # focus loss remain. "P" is the key with Caps Lock on.
             self.root.bind("<KeyPress-p>", self._on_pause_key)

@@ -135,6 +135,22 @@ def request_extra_body(backend: str):
         "chat_template_kwargs": {"enable_thinking": False},
     }
 
+def sampling_params(backend: str) -> dict:
+    """Sampling fields of a chat request.
+
+    The remote service gets the temperature alone: Anthropic's API refuses
+    top_p for its newer models ("top_p is deprecated for this model"). The
+    local backends keep both values, as before.
+
+    A new dict on every call, so no caller can change what the next request
+    sends.
+    """
+    params = {"temperature": config.LLM_TEMPERATURE,
+              "top_p": config.LLM_TOP_P}
+    if backend == "remote":
+        del params["top_p"]
+    return params
+
 
 def usage_log_line(usage) -> str:
     """Log line about the context a finished request used.
@@ -180,14 +196,18 @@ class LLMManager:
         with self._messages_lock:
             self.messages = [{"role": "system", "content": system_prompt}]
 
-    def init_client(self, base_url: str, api_key: str):
+    def init_client(self, base_url: str, api_key: str, default_headers=None):
         """Point the client at the chat server. Sends no request."""
         logging.info(f"Initializing LLM client → {base_url}")
+        # Passed only when there are some: the call stays the same for the
+        # local backends.
+        extra = {"default_headers": default_headers} if default_headers else {}
         self.client = OpenAI(
             base_url=base_url,
             api_key=api_key,
             timeout=LLM_TIMEOUT,
             max_retries=LLM_MAX_RETRIES,
+            **extra,
         )
 
     def check_connection(self, silent: bool = False) -> bool:
@@ -255,9 +275,8 @@ class LLMManager:
             with self.client.chat.completions.create(
                 model=self.model,
                 messages=messages_snapshot,
-                temperature=config.LLM_TEMPERATURE,
                 max_tokens=config.LLM_MAX_TOKENS,
-                top_p=config.LLM_TOP_P,
+                **sampling_params(config.LLM_BACKEND),
                 stream=True,
                 # A streamed reply has no usage unless it is asked for. With
                 # this option the server sends one more chunk at the end: the

@@ -27,14 +27,14 @@ BODY = (
     "\n"
     "SETTINGS\n"
     "Target language: [English]\n"
-    "Explanation language: [Russian]\n"
+    "Explanation language: [Italian]\n"
     "First topic: [choose one everyday situation]\n"
     "Use the value in brackets when a line is empty.\n"
 )
 
 ALL_VALUES = {
-    prompt.SETTING_TARGET_LANGUAGE: "Spanish",
-    prompt.SETTING_EXPLANATION_LANGUAGE: "English",
+    prompt.SETTING_TARGET_LANGUAGE: "English",
+    prompt.SETTING_EXPLANATION_LANGUAGE: "Italian",
     prompt.SETTING_FIRST_TOPIC: "my garden",
 }
 
@@ -131,11 +131,11 @@ class ShippedPromptTests(unittest.TestCase):
 
     def setUp(self):
         self.system_prompt = prompt.build_system_prompt(
-            SHIPPED_PROMPT, "English", "Russian", "")
+            SHIPPED_PROMPT, "English", "Italian", "")
 
     def test_the_settings_are_filled_in(self):
         self.assertIn("\nTarget language: English\n", self.system_prompt)
-        self.assertIn("\nExplanation language: Russian\n", self.system_prompt)
+        self.assertIn("\nExplanation language: Italian\n", self.system_prompt)
 
     def test_an_empty_first_topic_keeps_the_prompt_default(self):
         self.assertIn("\nFirst topic: [choose one everyday situation]\n",

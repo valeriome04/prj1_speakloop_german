@@ -42,7 +42,7 @@ def _meta():
     return transcript.meta_record(
         started_at=_START,
         target_language="English",
-        explanation_language="Russian",
+        explanation_language="Italian",
         first_topic="shopping",
         llm_model="gemma-4-12B-it-QAT-Q4_0.gguf",
         stt_model="Systran/faster-whisper-large-v3",
@@ -92,7 +92,7 @@ class MetaRecordTests(unittest.TestCase):
     def test_it_holds_the_settings_of_the_lesson(self):
         record = _meta()
         self.assertEqual(record["target_language"], "English")
-        self.assertEqual(record["explanation_language"], "Russian")
+        self.assertEqual(record["explanation_language"], "Italian")
         self.assertEqual(record["first_topic"], "shopping")
         self.assertEqual(record["llm_model"], "gemma-4-12B-it-QAT-Q4_0.gguf")
         self.assertEqual(record["tts_voice"], "af_heart")

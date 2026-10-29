@@ -219,8 +219,11 @@ class VoiceTutorController:
         logging.info(f"Using the {self.llm_backend} LLM backend.")
         # One client for both backends: they speak the same OpenAI API, and
         # config gives the address and the key of the selected one.
-        self.llm_mgr = LLMManager()
-        self.llm_mgr.init_client(config.LLM_URL, config.LLM_API_KEY)
+        #self.llm_mgr = LLMManager()
+        self.llm_mgr = LLMManager(config.LLM_MODEL)   # <-- was LLMManager(); None keeps the old placeholder
+        #self.llm_mgr.init_client(config.LLM_URL, config.LLM_API_KEY)
+        self.llm_mgr.init_client(config.LLM_URL, config.LLM_API_KEY,
+                         config.LLM_EXTRA_HEADERS)
         # The lesson over llm_mgr. Built by load_components, from the prompt
         # file; no exchange can start before that (app_ready).
         self.lesson: Optional[Lesson] = None
@@ -307,9 +310,12 @@ class VoiceTutorController:
         Studio, where the model is chosen in that application and this process
         cannot read which one it is.
         """
+
         if self.llm_backend == "llama-server":
-            return os.path.basename(config.EXTERNAL_MODEL_PATH)
-        return self.llm_backend
+            return os.path.basename(config.EXTERNAL_MODEL_PATH)   # <-- unchanged
+        if self.llm_backend == "remote":
+            return config.REMOTE_MODEL                            # <-- new: the transcript names the online model
+        return self.llm_backend  
 
     def _start_transcript(self) -> None:
         """Create the transcript writer of the lesson. (Tk thread.)
@@ -430,6 +436,13 @@ class VoiceTutorController:
             logging.info(f"Lesson prompt loaded from {config.PROMPT_FILE} "
                          f"({len(system_prompt)} characters).")
 
+            if self.llm_backend == "remote" and config.REMOTE_PROBLEMS:   # <-- only for remote with missing settings
+                for problem in config.REMOTE_PROBLEMS:
+                    self._system(f"Error: {problem}.")                    # <-- show each problem in the chat
+                self._system("The remote LLM is not set up. Fix this and "
+                             "start SpeakLoop again.")
+                self.root.after(0, self.view.server_failed)               # <-- window says the lesson can't start
+                return                                                    # <-- stop before loading any model
             self.stt_mgr.load_model()
             logging.info("STT Model loaded successfully.")
 
@@ -481,9 +494,15 @@ class VoiceTutorController:
                     # the lesson is opened once, so a window made ready here
                     # shows "Ready", fails on the first request and stays
                     # without a lesson even after LM Studio is started.
-                    self._system(f"Error: LM Studio does not answer at "
-                                 f"{config.LM_STUDIO_HOST}. Start its server, "
-                                 f"load a model and start SpeakLoop again.")
+                    if self.llm_backend == "remote":
+                        self._system(f"Error: the online LLM does not answer at "
+                                     f"{config.REMOTE_BASE_URL}. Check the address, "
+                                     f"the model name and the API key, then start "
+                                     f"SpeakLoop again. See logs/main.log.")
+                    else:
+                        self._system(f"Error: LM Studio does not answer at "
+                                     f"{config.LM_STUDIO_HOST}. Start its server, "
+                                     f"load a model and start SpeakLoop again.")
                     self.root.after(0, self.view.server_failed)
                     return
 

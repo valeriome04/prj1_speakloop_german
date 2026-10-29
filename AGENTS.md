@@ -559,8 +559,8 @@ the key differ.
   is derived from the profile and its variant - add a language by adding a
   profile, never a branch. `PRACTICE_LANGUAGE` is fixed to `"english"` and has
   no settings key (Spanish is postponed). The lesson section holds
-  `EXPLANATION_LANGUAGE` (fixed to Russian, no key: the NOTE example in the
-  prompt is Russian), `FIRST_TOPIC`, `PROMPT_FILE` (default: the file in
+  `EXPLANATION_LANGUAGE` (fixed to Italian, no key: the NOTE example in the
+  prompt is italian), `FIRST_TOPIC`, `PROMPT_FILE` (default: the file in
   `speakloop/prompts/`) and `TOPICS_FILE` (`speakloop/prompts/topics.txt`, no
   settings key). The UI palette is resolved here too: `_DARK_THEME` is the built-in
   palette, the complete list of valid color keys and the fallback for a missing
